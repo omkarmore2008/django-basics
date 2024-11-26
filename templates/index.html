@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio to WebSocket</title>
+</head>
+<body>
+    <button id="start">Start Recording</button>
+    <button id="stop" disabled>Stop Recording</button>
+
+    <script>
+        const startButton = document.getElementById('start');
+        const stopButton = document.getElementById('stop');
+        let mediaRecorder;
+        let webSocket;
+
+        startButton.addEventListener('click', async () => {
+            startButton.disabled = true;
+            stopButton.disabled = false;
+
+            // Initialize WebSocket connection
+            webSocket = new WebSocket('wss://dev.api.ecarescribe.ai/transcription/21f909af-91a0-4fb8-987c-0ec230da235f/?source=web&token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzI1ODg4MTQzLCJpYXQiOjE3MjU4ODQ1NDMsImp0aSI6ImVlZDdlNWIzYWRmMzQyODM4MjJkZDBmMTI1ZmViYTllIiwidXNlcl91dWlkIjoiYTY0MmYyYjAtNmEyMC00ODNjLTgwNjItMjgzMWQ2NzYwY2YyIn0.79mp-AIjrTxRSPQ9e1xs-SdDrPeAhdHuRBwqAsCrKRQ');
+
+            webSocket.onopen = function () {
+                console.log('WebSocket connection established.');
+            };
+
+            webSocket.onclose = function () {
+                console.log('WebSocket connection closed.');
+            };
+
+            webSocket.onerror = function (error) {
+                console.log('WebSocket error: ', error);
+            };
+
+            webSocket.onmessage = function (event) {
+                console.log('Received: ', event.data);
+            };
+
+            // Start recording
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video:true });
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = function (event) {
+                if (event.data.size > 0 && webSocket.readyState === WebSocket.OPEN) {
+                    console.log("data::::", event.data)
+                    webSocket.send(event.data);
+                }
+            };
+
+            mediaRecorder.start(5000); // Send audio chunks every second
+        });
+
+        stopButton.addEventListener('click', () => {
+            startButton.disabled = false;
+            stopButton.disabled = true;
+
+            // Stop recording
+            mediaRecorder.stop();
+
+            // Close WebSocket connection
+            webSocket.send("Recording completed");
+            webSocket.close()
+        });
+    </script>
+</body>
+</html>
